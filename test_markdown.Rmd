@@ -1,5 +1,10 @@
 ---
 title: "Dados de precipitação diária estimada pelo modelo regional Eta"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 output: html_document
 ---
 
@@ -141,3 +146,6 @@ Por fim, use a função `raster_layers` criada anteriormente para criar o objeto
 raster_stack <- raster_layers(dat = prec)
 raster_stack
 ```
+
+git branch <report>
+
