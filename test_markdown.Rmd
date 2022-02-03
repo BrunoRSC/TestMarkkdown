@@ -1,0 +1,143 @@
+---
+title: "Dados de precipitação diária estimada pelo modelo regional Eta"
+output: html_document
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+## 1. Apresentação
+A seguir são descritos os procedimentos para obtenção dos dados pertinentes às previsões de precipitação acumulada em 24 hs provenientes do modelo regional Eta, e a conversão desses em formato matricial (raster) utilizando a linguagem de programação R. As estimativas de precipitação mencionadas foram realizadas em rodadas sub sazonais e disponibilizadas para aplicação em modelagem hidrológica, conforme a demanda do grupo de pesquisa vinculado ao projeto “*Incorporação de previsões climáticas e hidrológicas na gestão da alocação de água do Rio São Francisco*”. O projeto referido é financiado pela Coordenação de Aperfeiçoamento de Pessoal de Nível Superior (CAPES) e pela Agência Nacional de Águas (ANA).
+
+## 2. Estrutura dos dados disponibilizados
+
+As estimativas de precipitação seguiram uma estrutura em grade regular com resolução horizontal de 20 km e compreenderam o período de 2015 a 2020. As previsões foram incluídas em arquivos compactados `.tar.gz` e disponibilizadas em [servidor FTP](http://ftp1.cptec.inpe.br/pesquisa/grpeta/subsazonal/Gustavo/Eta20km/Benedito/). Cada arquivo compactado correspondente a uma determinada data contem os seguintes arquivos em formato binário `.bin`, e os seus respectivos arquivos descritores `.ctl`:
+
+* `ocis_Eta20km(date).bin`: *downward short wave at ground (W/m²)*;
+* `prec_Eta20km(date).bin`: *total precipitation (Kg/m²/day)*;
+* `pslc_Eta20km(date).bin`: *surface pressure (hPa)*;
+* `tp2m_Eta20km(date).bin`: *2 metre temperature (K)*;
+* `u10m_Eta20km(date).bin`: *10 metre u-wind component (m/s)*;
+* `umrl_Eta20km(date).bin`: *specific humidity (kg/kg)*;
+* `v10m_Eta20km(date).bin`: *10 metre v-wind component (m/s)*;
+
+As rodadas de previsão tiveram início no segundo dia dos meses de janeiro, abril e setembro, assumindo-se as condições iniciais do primeiro ao décimo dia de cada mês, e percorreram os 60 dias seguintes, conforme exemplificado na Tabela 1. Dois resultados foram relacionados a uma mesma data de previsão, uma vez que foram retornados dois arquivos contendo as estimativas referente às 00:00 horas e às 12:00 horas. Dessa forma, foram originados 20 membros de previsão para cada data.
+
+## 3. Conversão dos arquivos binários
+
+Foi utilizado o ambiente R para a leitura dos arquivos `.bin` e posterior conversão desses em outros formatos, i.e., imagens raster com extensão `.tiff` que possibilitaram o acesso à informação (valor numérico) correspondente a cada pixel que as compuseram. A leitura dos dados binários no R foi feita a partir da função `readGradsFile` contida no pacote [readgrads](https://github.com/lhmet/readgrads?ref=https://githubhelp.com), desenvolvido para manipulação de dados oriundos do software  [GrADS](http://cola.gmu.edu/grads/) (*Grid Analysis and Display System*), utilizado comumente para visualização de dados geofísicos.  
+
+Após o download e descompactação dos arquivos `.bin` e `.ctl` referentes a uma determinada data e horário de previsão, esses foram armazenados em um mesmo diretório. A partir de então, os arquivos foram importados no R e uma função específica foi criada para a conversão do formato. Uma vez que cada arquivo binário continha as 60 previsões consecutivas obtidas a partir das condições iniciais de uma determinada data, foram criados objetos `RasterStack` a partir da função descrita anteriormente contendo uma coleção de 60 objetos `RasterLayer` com a mesma extensão espacial e resolução. Além disso, a função mencionada também definiu o sistema de referência de coordenadas (SRC) dos arquivos de saída e, neste caso, foi utilizado o datum WGS 84 (*World Geodetic System 1984*), código epsg 4326. Destaca-se que, além do pacote `readgrads`, os pacotes `raster`, desenvolvido para operações com dados espaciais em formato matricial e vetorial, e `data.table`, desenvolvido para agregação de grandes conjuntos de dados, foram requisitados para a execução do procedimento mencionado.
+
+Após a conversão dos aqruivos `.bin` em formato raster, foi possível a realização de outras manipulações dos dados e arquivos originados. Neste sentido, foi feito o recorte e aplicação de uma máscara definida por arquivos em formato vetorial (i.e., `shapefiles`) contendo a discretização e o contorno de áreas de estudos delimitadas. De outra forma, a partir da discretização apresentada de uma área definida, foi possível calcular estatísticas zonais referentes ao somatório da precipitação diária acumulada conforme os valores dos pixels que se sobrepuseram a extensão de cada regionalização.
+
+![Alt text](D:/Users/bruno/Documents/pos_doc/ftp_eta/2015/2015010100/prec_Eta20km2015010100.png) Figura 1. Coleção de objetos `RasterLayer` com resolução horizontal de 20 km contidas em um objeto `RasterStack` contendo as previsões de precipitação obtidas pelo modelo Eta para os 60 dias consecutivos a partir do dia 01/02015.
+
+![Alt text](D:/Users/bruno/Documents/pos_doc/ftp_eta/2015/2015010100/prec_Eta20km2015010100_mask.png) Figura 2. Coleção de objetos `RasterLayer` com resolução horizontal de 20 km contidas em um objeto `RasterStack` contendo as previsões de precipitação obtidas pelo modelo Eta para os 60 dias consecutivos a partir do dia 01/02015, recortadas para a extensão da bacia do Rio São Francisco.
+
+## 4. Script
+  
+Este script foi desenvolvido em ambiente R e utilizado para conversão de dados binários `.bin` em dados matriciais no formato raster `.tiff`. Aqui faremos apenas a conversão dos dados de precipitação, cujo nome dos arquivos apresentam o prefixo `prec_Eta20km` no arquivo compactado. Usaremos o arquivo `prec_Eta20km2015010100.bin` (que corresponde as estimativas feitas a partir do dia 01/01/2015 retornadas as 00:00 hs) para entender a estrutura dos dados de previsão. Conforme as informaçõs contidas no arquivo descritor `.ctl`, o arquivo binário apresenta as seguintes componentes:
+
+* `dset`(emsp)^prec_Eta20km2015010100.bin  
+* `title` File  
+* `undef` 1e+20  
+* `xdef` 59 linear  -47.8    0.20  
+* `ydef` 71 linear  -21.2    0.20  
+* `zdef` 1 levels 1000  
+* `tdef` 241 linear 00Z01Jan2015  6hr  
+* `vars` 1  
+* `prec` 1  99 TOTAL PRECIPITATION [Kg/m2/day]  
+* `endvars`  
+
+A componente `tdef` dos arquivos binários indica um número de 241 níveis na dimensão do tempo. Uma vez que cada arquivo compreende 60 estimativas diárias de precipitação a partir de uma data inicial e, desconsiderando o primeiro nível da componente `tdef` (pois todos os seus valores são iguais a zero), os 240 níveis restantes podem ser agrupados em intervalos sequenciais de 4 níveis. Uma vez que cada nível de `tdef` equivale a 6 horas, cada intervalo correspondendeu a 1 dia de estimativa (4 x 6 = 24 horas), resultando em 240/4 = 60 dias de estimativas. Assim, no arquivo `prec_Eta20km2015010100.bin`, por exemplo, as previsões se iniciam em 01/01/2015 e se extendem até o dia 10/03/2015.
+  
+Obs: para execução deste script, os apenas os arquivos `.bin` e `.ctl` correspondentes a previsão de precipitação diária foram extraidos previamente do arquivo original `2015010100.tar.gz`.
+
+
+## 5. Executando o script
+### 5.1 Carregando as bibliotecas requeridas
+
+```{r Primeiro passo: carregando as bibliotecas requeridas, eval = FALSE}
+library(readgrads)
+library(data.table)
+library(raster)
+```
+
+Obs: instale o pacote `readgrads` diretamente do github utilizando o seguinte comando (requer o pacote "devtools")
+```{r instalando o pacote readgrads, eval = FALSE}
+library(devtools)
+devtools::install_github("lhmet/readgrads")
+```
+  
+  
+### 5.2 Escrevendo a função "raster_layers" para conversão do arquivo binário
+Obs: uma vez que cada arquivo `.bin` compreende 60 estimativas de precipitação a partir de uma data inicial, essa função retorna um objeto `RasterStack` contendo uma coleção de arquivos raster em formato `.tiff`, todos com a mesma extensão e resolução espacial.
+
+
+```{r definition, echo=FALSE}
+raster_layers <- function(dat){
+
+  min_tstep <- min(dat$tstep)
+  max_tstep <- max(dat$tstep)
+  breaks <- seq(min_tstep, max_tstep, by = 4)
+  
+  ## Passo 1: criar subconjuntos (dias de previsão) com base na variável tstep do arquivo binário
+  dat$group <- cut(dat$tstep, breaks)
+  dat <- dat[!is.na(dat$group), ]
+  ## Passo 2: calcular os valores de precipitação acumulada
+  prec <- setDT(dat)[ , list(prec_sum = sum(prec * 1000)), by = list(group, x, y)]
+  ## Passo 3: criar os arquivos raster e incluir o sistema de referência de coordenadas
+  layer <- list()
+  group <- unique(prec$group)
+  j <- 1
+  for (i in group){
+    
+    raster_dat <- prec[prec$group %in% i , c("x", "y", "prec_sum")]
+
+    colnames(raster_dat)[colnames(raster_dat) == "prec_sum"] <- paste0("prec_sum_", j)
+    layer[[j]] <- 
+      rasterFromXYZ(raster_dat, 
+                    res = c(0.20, 0.20), 
+                    crs = sp::CRS("+init=epsg:4326"))
+    j <- j + 1
+  }
+  ## Passo 4: criar o arquivo RasterStack
+  stack_prec <- stack(unlist(layer))
+  
+  return(stack_prec)
+}
+```
+
+```{r definition, eval = FALSE}
+```
+
+### 5.3 Importando o arquivo binário para o R
+Obs: nessa etapa os arquivos `.bin` e `.ctl` devem estar no mesmo diretório e nomeados de forma idêntica. Utilize a função `setwd` para indicar o diretório onde os arquivos foram armazenados:
+
+```{r, eval = FALSE}
+setwd("insira o caminho do arquivo aqui")
+```
+
+Em seguida, use a função `readGradsFile` do pacote `readgrads` para ler o arquivo binário como um dataframe (nesse caso, criamos o objeto `prec` para armazenar o arquivo `prec_Eta20km2019090100.bin`, que usamos anteriormente como exemplo):
+
+```{r, eval = FALSE}
+prec <- readGradsFile(
+  'prec_Eta20km2019090100.bin',
+  file.ext = ".bin",
+  convert2dataframe = TRUE,
+  padding.bytes = FALSE
+)
+
+head(prec)
+```
+
+### 5.4 convertendo o arquivo binário
+Por fim, use a função `raster_layers` criada anteriormente para criar o objeto `RasterBrick`contendo os arquivos raster:
+
+```{r, eval = FALSE}
+raster_stack <- raster_layers(dat = prec)
+raster_stack
+```
